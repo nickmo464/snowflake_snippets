@@ -1,0 +1,76 @@
+from airflow import DAG
+from datetime import datetime, timedelta
+from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
+
+class TestSnowflakeConnectivityOperator(BaseOperator):
+
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
+    ui_color = '#ededed'
+
+    @apply_defaults
+    def __init__(
+            self, sql, snowflake_conn_id='snowflake_default', parameters=None,
+            autocommit=True, warehouse=None, database=None, role=None,
+            schema=None, *args, **kwargs):
+        super(TestSnowflakeConnectivityOperator, self).__init__(*args, **kwargs)
+        self.snowflake_conn_id = snowflake_conn_id
+        self.sql = sql
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.warehouse = warehouse
+        self.database = database
+        self.role = role
+        self.schema = schema
+
+    def get_hook(self):
+        return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
+                             warehouse=self.warehouse, database=self.database,
+                             role=self.role, schema=self.schema)
+
+    def execute(self, context):
+        self.log.info('Executing: %s', self.sql)
+        hook = self.get_hook()
+        row = hook.get_first(
+            sql=self.sql,
+            parameters=self.parameters)
+        self.log.info('First row was:: %s', row)
+
+DAG_NAME = 'example_sql_params'
+
+default_args={
+    'owner': 'airflow',
+    'dagId': DAG_NAME,
+    'depends_on_past': False,
+    'email': 'datalakeoperations@workfront.com',
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'start_date': datetime(2019, 10, 26),
+    'retries': 0,
+    'retry_delay': timedelta(minutes=1)
+}
+
+
+dag = DAG(dag_id=DAG_NAME,
+          default_args=default_args,
+          catchup=True,
+          schedule_interval=None,
+          max_active_runs=1,
+          params={"some_airflow_param": "foo",
+                  "another_airflow_param": "bar"})
+
+sqlText = """select 'this is some text' as col1, {{ params.some_airflow_param }} as {{ params.another_airflow_param }}
+"""
+
+test_task = TestSnowflakeConnectivityOperator(task_id='get_a_row_from_sf',
+            snowflake_conn_id='snowflake_workfront_aws_us_west_2',
+            dag=dag,
+            sql=sqlText,
+            role='MY_SNOWFLAKE_ROLE',
+            database='MY_SNOWFLAKE_DB',
+            schema='MY_SNOWFLAKE_SCHEMA',
+            warehouse='MY_SNOWFLAKE_WAREHOUSE')
+
+
