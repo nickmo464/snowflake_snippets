@@ -44,7 +44,7 @@ default_args={
     'owner': 'airflow',
     'dagId': DAG_NAME,
     'depends_on_past': False,
-    'email': 'datalakeoperations@workfront.com',
+    'email': 'myemail@myemaildomain.com',
     'email_on_failure': False,
     'email_on_retry': False,
     'start_date': datetime(2019, 10, 26),
@@ -65,7 +65,7 @@ sqlText = """select 'this is some text' as col1, {{ params.some_airflow_param }}
 """
 
 test_task = TestSnowflakeConnectivityOperator(task_id='get_a_row_from_sf',
-            snowflake_conn_id='snowflake_workfront_aws_us_west_2',
+            snowflake_conn_id='my_snowflake_conn_id',
             dag=dag,
             sql=sqlText,
             role='MY_SNOWFLAKE_ROLE',
